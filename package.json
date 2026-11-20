@@ -1,17 +1,16 @@
 {
-  "name": "naim-livetvhd",
-  "version": "1.0.2",
-  "description": "Naim LiveTVHD Android App",
-  "main": "index.js",
+  "name": "naim-m3u-manager-tools",
+  "version": "1.0.0",
+  "description": "Naim M3U Manager Tools Android App",
   "scripts": {
-    "build": "echo 'Building web assets'"
+    "build": "echo Building Naim M3U Manager Tools"
   },
   "dependencies": {
-    "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
-    "@capacitor/splash-screen": "^6.0.0"
+    "@capacitor/android": "^6.0.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.0.0"
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/assets": "^3.0.0"
   }
 }
