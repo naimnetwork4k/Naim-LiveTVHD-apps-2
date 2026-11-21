@@ -1,0 +1,81 @@
+name: Build Android APK with Custom Logo
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install dependencies & Initialize Capacitor
+        run: |
+          npm install
+          npm install @capacitor/splash-screen
+          npx cap add android
+
+      - name: Ensure Internet permission and cleartext support
+        run: |
+          python3 - <<'PYMANIFEST'
+          from pathlib import Path
+          import re
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text(encoding="utf-8")
+          if "android.permission.INTERNET" not in s:
+              s = re.sub(r"(<manifest\b[^>]*>)", lambda m: m.group(1) + '\n    <uses-permission android:name="android.permission.INTERNET" />', s, count=1)
+          if re.search(r'android:usesCleartextTraffic\s*=\s*"[^"]*"', s):
+              s = re.sub(r'android:usesCleartextTraffic\s*=\s*"[^"]*"', 'android:usesCleartextTraffic="true"', s, count=1)
+          else:
+              s = re.sub(r"(<application\b)", r'\1 android:usesCleartextTraffic="true"', s, count=1)
+          p.write_text(s, encoding="utf-8")
+          PYMANIFEST
+
+      - name: Setup Splash Screen and Icons
+        run: |
+          python3 -m pip install --user pillow
+          mkdir -p android/app/src/main/res/drawable
+          python3 - <<'PYICON'
+          from pathlib import Path
+          from PIL import Image
+          src = Path("www/icon.png")
+          if not src.exists():
+              src = Path("www/icon.jpg")
+          if src.exists():
+              image = Image.open(src).convert("RGBA")
+              for density in ("hdpi", "mdpi", "xhdpi", "xxhdpi", "xxxhdpi"):
+                  out = Path(f"android/app/src/main/res/mipmap-{density}")
+                  out.mkdir(parents=True, exist_ok=True)
+                  image.save(out / "ic_launcher.png", format="PNG")
+                  image.save(out / "ic_launcher_round.png", format="PNG")
+                  image.save(out / "ic_launcher_foreground.png", format="PNG")
+              image.save("android/app/src/main/res/drawable/splash.png", format="PNG")
+          PYICON
+          npx cap sync android
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Naim-LiveTVHD-Large-Splash
+          path: android/app/build/outputs/apk/debug/app-debug.apk
