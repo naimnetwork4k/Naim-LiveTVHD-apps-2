@@ -24,38 +24,50 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Prepare project files
+      - name: Prepare workspace
         run: |
           if [ -d "Naim-LiveTVHD-apps-2-main" ] && [ ! -f "package.json" ]; then
-            cp -r Naim-LiveTVHD-apps-2-main/* .
-            cp -r Naim-LiveTVHD-apps-2-main/.github . 2>/dev/null || true
+            cp -rn Naim-LiveTVHD-apps-2-main/. . 2>/dev/null || true
           fi
-          ls -la
+          mkdir -p www
 
-      - name: Install dependencies & Initialize Capacitor
+      - name: Install dependencies & Sync Capacitor
         run: |
-          npm install
+          if [ -f "package.json" ]; then
+            npm install
+          else
+            npm init -y
+            npm install @capacitor/core @capacitor/cli @capacitor/android
+          fi
           npx cap init "Naim LiveTVHD" "com.naimnetwork4k.livetvhd" --web-dir=www || true
-          npx cap add android || true
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
       - name: Setup Splash Screen and Icons
         run: |
           mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
+          ICON_SRC=""
           if [ -f "www/icon.jpg" ]; then
-            cp "www/icon.jpg" android/app/src/main/res/drawable/splash.jpg || true
-            cp "www/icon.jpg" android/app/src/main/res/mipmap-hdpi/ic_launcher.jpg || true
-            cp "www/icon.jpg" android/app/src/main/res/mipmap-mdpi/ic_launcher.jpg || true
-            cp "www/icon.jpg" android/app/src/main/res/mipmap-xhdpi/ic_launcher.jpg || true
-            cp "www/icon.jpg" android/app/src/main/res/mipmap-xxhdpi/ic_launcher.jpg || true
-            cp "www/icon.jpg" android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.jpg || true
+            ICON_SRC="www/icon.jpg"
+          elif [ -f "www/1000273307 (1).png" ]; then
+            ICON_SRC="www/1000273307 (1).png"
+          fi
+          if [ -n "$ICON_SRC" ]; then
+            cp "$ICON_SRC" android/app/src/main/res/drawable/splash.jpg || true
+            cp "$ICON_SRC" android/app/src/main/res/mipmap-hdpi/ic_launcher.jpg || true
+            cp "$ICON_SRC" android/app/src/main/res/mipmap-mdpi/ic_launcher.jpg || true
+            cp "$ICON_SRC" android/app/src/main/res/mipmap-xhdpi/ic_launcher.jpg || true
+            cp "$ICON_SRC" android/app/src/main/res/mipmap-xxhdpi/ic_launcher.jpg || true
+            cp "$ICON_SRC" android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.jpg || true
           fi
 
       - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
