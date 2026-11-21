@@ -24,6 +24,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Prepare project files
+        run: |
+          if [ -d "Naim-LiveTVHD-apps-2-main" ] && [ ! -f "package.json" ]; then
+            cp -r Naim-LiveTVHD-apps-2-main/* .
+            cp -r Naim-LiveTVHD-apps-2-main/.github . 2>/dev/null || true
+          fi
+          ls -la
+
       - name: Install dependencies & Initialize Capacitor
         run: |
           npm install
@@ -33,7 +41,7 @@ jobs:
 
       - name: Setup Splash Screen and Icons
         run: |
-          mkdir -p www android/app/src/main/res/drawable android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
+          mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
           if [ -f "www/icon.jpg" ]; then
             cp "www/icon.jpg" android/app/src/main/res/drawable/splash.jpg || true
             cp "www/icon.jpg" android/app/src/main/res/mipmap-hdpi/ic_launcher.jpg || true
@@ -43,7 +51,7 @@ jobs:
             cp "www/icon.jpg" android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.jpg || true
           fi
 
-      - name: Enable Cleartext Traffic & Build Debug APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
