@@ -1,4 +1,4 @@
-name: Build Android APK with Custom Logo
+name: Build Naim LiveTVHD APK
 
 on:
   push:
@@ -10,28 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '22'
 
-      - name: Set up Java JDK 17
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Prepare workspace
+      - name: Prepare project files
         run: |
           if [ -d "Naim-LiveTVHD-apps-2-main" ] && [ ! -f "package.json" ]; then
             cp -rn Naim-LiveTVHD-apps-2-main/. . 2>/dev/null || true
           fi
           mkdir -p www
 
-      - name: Install dependencies & Sync Capacitor
+      - name: Install dependencies
         run: |
           if [ -f "package.json" ]; then
             npm install
@@ -39,38 +39,51 @@ jobs:
             npm init -y
             npm install @capacitor/core @capacitor/cli @capacitor/android
           fi
+
+      - name: Build web assets
+        run: npm run build || true
+
+      - name: Add Android platform if missing
+        run: |
           npx cap init "Naim LiveTVHD" "com.naimnetwork4k.livetvhd" --web-dir=www || true
           if [ ! -d "android" ]; then
             npx cap add android
           fi
-          npx cap sync android
+          npx cap sync android || true
 
-      - name: Setup Splash Screen and Icons
+      - name: Apply custom icon safely without duplicate resources
         run: |
-          mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi
+          set +e
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/*.png 2>/dev/null || true
+
           ICON_SRC=""
-          if [ -f "www/icon.jpg" ]; then
-            ICON_SRC="www/icon.jpg"
-          elif [ -f "www/1000273307 (1).png" ]; then
-            ICON_SRC="www/1000273307 (1).png"
+          for f in "icon.png" "logo.png" "1000273307 (1).png" "assets/icon.png" "assets/logo.png" "www/icon.png" "www/logo.png" "www/icon.jpg" "www/1000273307 (1).png"; do
+            if [ -f "$f" ]; then
+              ICON_SRC="$f"
+              break
+            fi
+          done
+
+          if [ -n "$ICON_SRC" ] && [ -f "$ICON_SRC" ]; then
+            echo "Using icon: $ICON_SRC"
+            for dir in android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi; do
+              if [ -d "$dir" ]; then
+                cp -f "$ICON_SRC" "$dir/ic_launcher.png" 2>/dev/null || true
+                cp -f "$ICON_SRC" "$dir/ic_launcher_round.png" 2>/dev/null || true
+                cp -f "$ICON_SRC" "$dir/ic_launcher_foreground.png" 2>/dev/null || true
+              fi
+            done
+          else
+            echo "No icon file found in standard paths"
           fi
-          if [ -n "$ICON_SRC" ]; then
-            cp "$ICON_SRC" android/app/src/main/res/drawable/splash.jpg || true
-            cp "$ICON_SRC" android/app/src/main/res/mipmap-hdpi/ic_launcher.jpg || true
-            cp "$ICON_SRC" android/app/src/main/res/mipmap-mdpi/ic_launcher.jpg || true
-            cp "$ICON_SRC" android/app/src/main/res/mipmap-xhdpi/ic_launcher.jpg || true
-            cp "$ICON_SRC" android/app/src/main/res/mipmap-xxhdpi/ic_launcher.jpg || true
-            cp "$ICON_SRC" android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.jpg || true
-          fi
+          exit 0
 
       - name: Build Debug APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug
 
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Naim-LiveTVHD-Large-Splash
           path: android/app/build/outputs/apk/debug/app-debug.apk
